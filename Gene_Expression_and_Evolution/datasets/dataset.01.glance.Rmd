@@ -1,0 +1,71 @@
+---
+output:
+  html_document:
+    theme: readable
+---
+
+```{r }
+
+library(tidyverse)
+library(skimr)
+
+figurecount   = 1
+
+mammals = read_csv(file = "dataset.01.rsbl20150010supp1.csv")
+
+df = mammals %>% tbl_df()
+
+```
+
+# Look at the data!
+
+```{r }
+
+df %>% 
+  head() %>% 
+  data.frame() %>%
+  knitr::kable() %>%
+  {.}
+
+```
+
+# Normal summary
+
+```{r}
+
+df %>% 
+  summary() %>%
+  {.}
+
+```
+
+
+# categorical variables
+
+```{r}
+
+df %>%
+  skim() %>% 
+  select(variable, type, stat, formatted) %>%
+  filter(type == "character", stat %in% c("n", "missing", "n_unique")) %>%
+  spread(stat, formatted) %>%
+  knitr::kable() %>%
+  {.}
+
+
+```
+
+# numerical variables
+
+```{r}
+
+df %>%
+  skim() %>% 
+  select(variable, type, stat, formatted) %>%
+  filter(type == "numeric", stat %in% c("n", "missing", "mean", "hist", "p0", "p100")) %>%
+  spread(stat, formatted) %>%
+  knitr::kable() %>%
+  {.}
+
+```
+

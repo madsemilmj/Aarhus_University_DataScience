@@ -1,0 +1,62 @@
+---
+output:
+  html_document:
+    theme: readable
+---
+
+```{r }
+
+library(tidyverse) # loading the tidyverse package
+library(skimr) # loading the skimr package for the skim function 
+library(gapminder) # loading the gapminder R package
+
+data("gapminder") # loading the data in memory
+summary(gapminder) # getting a summary
+skim(gapminder)
+head(gapminder)
+tail(gapminder)
+names(gapminder)
+figurecount   = 1
+
+
+```
+
+# Look at the data!
+You can use the %>% to chain together several operation sequentially 
+Grammatically think about it as " and then ... "
+
+```{r }
+
+gapminder %>% 
+  head() %>% 
+  data.frame() %>%
+  knitr::kable() %>%
+  {.}
+
+```
+
+# Normal summary
+
+```{r}
+
+gapminder %>% 
+  summary() %>%
+  {.}
+
+```
+
+
+# numerical variables
+
+```{r}
+
+gapminder %>%
+  skim() %>% 
+  select(variable, type, stat, formatted) %>%
+  filter(type == "numeric", stat %in% c("n", "missing", "mean", "hist", "p0", "p100")) %>%
+  spread(stat, formatted) %>%
+  knitr::kable() %>%
+  {.}
+
+```
+
