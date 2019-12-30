@@ -1,0 +1,314 @@
+---
+title: 'Introduction to Data Science  - Fall 2019 - '
+author: '--- Here is your NAME AND AU ID ---'
+date: ' **before** Oct 11, 2019'
+output:
+  pdf_document: default
+  html_document:
+    theme: readable
+subtitle: 'XX Mid-term assignment template XX '
+editor_options:
+  chunk_output_type: console
+---
+
+
+ 
+```{r setup, include=FALSE}
+# Note that due to the options of setup this chuck will not be included when knitting
+#By default we want the R code chunks to be visible in the report 
+knitr::opts_chunk$set(echo = TRUE)
+
+#Here you can add the libraries you need to load 
+# (note that we output details on library used, with sessionInfo(), see very last section of thie rmd document)
+library(tidyverse)
+library(knitr)
+```
+
+
+# Background: Overall goal of the mid term report 
+
+In this report, you will provide a step by step analysis of the "mammals" dataset. By doing so you will reproduce a fraction of the analysis that is behind the paper published in 2015 and entitled. 
+
+"Gene expression, chromosome heterogeneity and the fast-X effect in mammals", published by Nguyen et al in the journal *Biology Letters* in 2015:
+
+https://doi.org/10.1098/rsbl.2015.0010
+
+This will be the occasion to mobilize all the know how in R programming and rmarkdown, that you have accumulated in first period of the course. 
+
+Note that Q1 and Q2 reproduce -- quite strictly- some of the original analysis, Q3 (by option A and B) actually explore further the data and are original analysis that were not performed in the original paper.
+
+** Be aware that each question Q1 Q2 and Q3 are braod questions that contains a set of sub questions**
+
+## Importing on the mammals dataset 
+
+```{r message=FALSE, warning=FALSE}
+mammals <- read_csv(file = "../datasets/dataset.01.rsbl20150010supp1.csv")
+```
+
+## Q1: Make a table summarizing the information available for each species 
+
+Make a new dataset **mammals_overview**
+The dataset **mammals_overview** should contain as columns:
+
+- the species name
+- variable chrMark ("A" for Autosomes and "X" for X chromsomes)
+- sample size n_genes for each sub group defined by the variable chrMark 
+
+Then ** format** the dataset so you can include it as a table for your report. 
+The table should provide for each species an overview of the number of genes (sample size) availablefor autosomes and X genes 
+
+```{r}
+mammals_overview <- mammals %>%
+  group_by(Species, chrMark) %>%
+  summarise(Sample_size = n())
+
+mammals_overview %>%
+  head %>%
+   kable(digits = 2, col.names = c("Species", "Gene Location", "Sample size"))
+```
+
+Here is a glimpse of a possible table :
+You can play with the option of kable() to adjust digits, column names, etc. 
+
+```{r}
+# mammals_overview %>%
+#   head %>%
+#   kable(digits = 2, col.names = c("Species", "Gene Location", "Sample size"))
+
+```
+NB: You can also make a table that has three columns:
+
+- Species 
+
+- sample size (nb of genes) for  autosomes
+
+- sample size for X
+
+```{r}
+mammals_overview_wider <- mammals_overview %>%
+  pivot_wider(names_from = chrMark, values_from = Sample_size)
+
+mammals_overview_wider %>%
+  kable(digits = 2, col.names = c("Species", "Sample Size for A", "Sample size for X"))
+
+```
+
+
+>Q2: Reproducing the main figure of the Biology Letters article
+
+In the past week, we have made summaries of the dataset by grouping genes per Species and chromosome. 
+So you can reuse your code - or borrow the solution-  to build a dataset **mammalsmeans** containing means of gene expression and dN/dS for these subgroups. 
+
+Then "ggplot()" **mammalsmeans**  to do the scatter plot reproducing the figure of the original paper..
+
+And relative to the original publication, you can even improving it by making the size of every data point (a chromsome) reflect how many genes are on the chromsome.
+
+Check .. it should look like this :
+
+<img src="visuals/Mammals_medianRPKM_VS_dNdS_BetterFigure.png" alt="drawing" width="600"/>
+
+Hint to improve the figure: use size option for geom_point() with ggplot to adjust point size as a function of your sample size variable. 
+
+
+```{r}
+mammalsmeans <- mammals %>%
+  group_by(Species, chr, chrMark) %>%
+  summarise(mean_dN = mean(dN), mean_dS = mean(dS), median_RPKM = median(RPKM), mean_dN_dS = mean_dN/mean_dS, n_genes = n())
+
+mammalsmeans %>%
+  head %>%
+  kable(digits = 2)
+
+mammalsmeans %>%
+  ggplot(mapping = aes(x= median_RPKM, y = mean_dN_dS, color = Species))+
+  geom_point(mapping = aes(size = n_genes, shape = chrMark), show.legend = T)+
+  geom_smooth(method = "lm", se = F)+
+  theme_light()+
+  labs(x= "Median RPKM", y="dN/dS", shape = "Chromosomes", size = "n")+
+  NULL
+```
+
+
+
+
+
+
+
+
+At this stage you can choose your path for the report and examine one of 2 possibles versions (option) for question Q3
+
+## PATH A (gentle): are chromosomes mean rates of evolution different ?
+
+>Q3: Comparing Human versus Chimpanzee rates of evolution
+
+## Background and motivation 
+
+Since Humans and Chimpanzees parted their way from their common ancestor, they have evolved independently. 
+Remember: The dN/dS ratio measures how fast genes of their respective genomes have evolved. It makes sense to make such comparison chromsome by chromsome as we have an identical chromsome structure (the only difference at the chromosome level between human and chimpanzees, is one fusion of chromosomes called 2A and 2B in chimpanzees and correspond as fused entities to chr2 in humans).
+
+>Q3.1: build the right summary dataset
+
+We want to make a scatter plot as a visual that contrasts mean rate of evolution for genes chromsome by chromosome in both human vs. chimpanzees. To do so you need to reformat the data as a new dataset called *human_chimp_df* so you can ggplot it.
+We outline the steps on how to do so below. 
+
+ 
+
+Steps to answer Q3:
+
+- To build *human_chimp_df* , you need to only consider these two species only and filter out the remaining species. 
+
+- You also should exclude chromosomes "2, 2A and 2B" . All other chromosomes are conserved between humans and chimpamnzees (check that the genes number are quite close on each chromosome)
+
+- then you should "broaden your dataset" (see class examples week 05) so you can get a dataset where for each chromosome, you have matching columns with mean dN/dS on human and chimpanzee.
+
+```{r}
+human_chimp_df <- mammalsmeans %>%
+  filter(Species %in% c("Chimp", "Human"), !chr %in% c("2", "2A", "2B")) %>%
+  select(-(chrMark:median_RPKM)) %>%
+  pivot_wider(names_from = Species, values_from = c(mean_dN_dS,n_genes))
+
+human_chimp_df %>%
+  head() %>%
+  kable(digits = 2)
+  
+```
+
+
+
+>Q3.2: Make a scatterplot contrasting Human versus Chimpanzee chromosomal rates of evolution 
+
+check it should look like this ... 
+
+<img src="visuals/human_chimp_tbl.png" alt="drawing" width="600"/>
+
+```{r}
+human_chimp_df %>%
+  ggplot(mapping = aes(x = mean_dN_dS_Human, y = mean_dN_dS_Chimp, size = n_genes_Chimp + n_genes_Human))+
+  geom_point(color = "cornflowerblue")+
+  geom_abline(slope = 1, intercept = 0, color="red", linetype = 2, size = 1 )+
+  geom_smooth(method = lm)+
+  #xlim(0.45,0.87)+
+  #ylim(0.45,0.87)+
+  NULL
+```
+
+SPØRGSMÅL: Er det et forkert plot der er vist på classroom slides??
+
+>Q3.3: Write a few lines where you comment and interpret the results shown in the plot. 
+
+Is there a trend in the data ? How many chromosomes seem to evolve faster in chimpanzee (higher dN/dS)
+
+Are the rates of evolution in both species quite correlated ? 
+
+Ja, det kan ses at der er en correlation der viser at jo højere et kromosom udvikler sig i mennesker, tilsvarende højere er det ved chimpanze.
+
+Is one species evolving faster since speciation ? 
+Ligger i forlængelse af næste spørgsmål, så gør dette ret kort, human udvikler sig lidt hurtigere.
+
+>Q3.4 Is the number of chromosomes evolving faster in chimpanzee higher than expected "by chance"
+
+If species are evolving at the same rate "overall", we expect -- by a symmetry argument -- that about 1/2 of the chromosomes are faster in chimpanzees ...so use a binomial distribution for modelling as stochastic variable the number of chromosomes that evolve faster in one species. Calculate the probability of observing "just by chance" a pattern as extreme or more extreme than the one you can see on the plot. 
+
+```{r}
+# We start by creating the H0-hypothesis, which is assuming that human and chimpanzees evolve at the same rate overall. In regard of H0, we expect that about 1/2 of the chromosomes evolves faster in chimpanzees. We use the binomial distribution to model a stochastic variable of the number of chromosomes evolving faster in chimpanzees. Below is a plot of the binomial distribution of the expected number of chromosomes evolving faster in Chimpanzees:
+chr_binom <- tibble(n_faster = c(0:22), SS = dbinom(c(0:22),22,0.5))
+chr_binom %>% 
+  ggplot(mapping = aes(x=n_faster, y=SS))+
+  geom_bar(stat = "identity")
+
+#Looking at the graph, it indicates that having 11 chromosomes evolving faster in chimpanzees has the highest probability. We can calculate the probability of having between 8 and 14 chromosomes evolving faster in Chimpanzees according to H0, as follows:
+pbinom(14,22,0.5)-pbinom(7,22,0.5)
+# The result implies that, if we believe in our H0-hypothesis, the probability of observing between 8 and 14 chromosomes evolving faster in Chimpanzees are approximately 87%. 
+
+# From Q3.3 we saw that 7 chromosomes were evelving faster in Chimpanzees, whereas the remaining 15 chromoses were evolving faster in Humans. We are now going to quntify how extreme that observation is relative to our H0-hypothesis. We do that by calculating the probability that observations coming from H0 could be just as extreme or more extreme as what we actually observed. Wich means that we based on our H0-hypothesis are calculating the probability of observing at least 7 chromosomes evolving faster in Chimpnzees:
+
+pbinom(7,22,1/2)
+```
+
+
+```{r}
+#Plot binomial-fordelingen, se hvordan 95% ligger, det vil sige range hvor vi kan forvente det vil ligge. Se hvor langt 8 er fra dette range.
+# 0-hypotese er at vi forventer at den er binomial-fordelt, kan vi forkaste denne hypotese, se mere under classroom kahoot quiz.
+pbinom(8,22,1/2)
+```
+
+```{r}
+chr_binom <- tibble(n_faster = c(0:22), SS = dbinom(c(0:22),22,0.5))
+chr_binom %>% 
+  ggplot(mapping = aes(x=n_faster, y=SS))+
+  geom_bar(stat = "identity")
+dbinom(8,22,0.5)+dbinom(9,22,0.5)+dbinom(10,22,0.5)+dbinom(11,22,0.5)+dbinom(12,22,0.5)+dbinom(13,22,0.5)+dbinom(14,22,0.5)
+pbinom(14,22,0.5)-pbinom(7,22,0.5)
+```
+
+
+# Path B (harder): Which gene functions evolved faster on the X relative to Autosomes ? 
+
+Warning this one is more challenging it requires that you can build up on week 05 exercises and reuse the dataset *mammals_go*
+
+>Q3: Are mouse genes faster on the X: an analysis stratified by GOs.
+
+## background and motivation:
+Here, we want explore if the median dNdS is higher on the X than on autosomes for different GO categories. 
+We want to test that by matching groups of genes that are annotated as having the same gene function.
+So we need to also import and merge the extra info on genes provided by gene ontologies (G0). WE as in week 05 restrict ourselves to "biological_process" GOs.
+
+```{r}
+
+go <- read_tsv(file = "../datasets/dataset.01.go_annotation_lookup_table.tsv")
+
+go_slim <- read_tsv(file = "../datasets/dataset.01.goslim_annotation.mart_export.txt.gz")
+names(go_slim) <- c("gene", "go_acc", "go_description")
+
+go_merged <- go_slim %>%
+  full_join(go, by="go_acc") %>%
+  {.}
+
+go_trimmed <- go_merged %>%
+  filter(go_domain=="biological_process") %>%
+  filter(!go_description %in% c(NA, "biological_process")) %>%
+  {.}
+
+mammals_go <- mammals %>%
+  inner_join(go_trimmed, by = "gene")
+
+```
+
+
+>Q3.1: Summarize in a new dataset the median dN/dS by G0 and by chrMark categories on the Mouse genome
+
+For the reminder of this assignment, restrict yourself to mouse genes only (We chose Mouse because it has the largest number of genes on the X).
+Only use GO terms with at least 5 genes on chromosome X. (n >= 5). Call that dataset **mouse_by_go**.
+
+Format and include the dataset **mouse_by_go** as a table in your report. 
+
+We know that a category of genes involved in reproduction are known from other studies to be on average fast evolving. 
+In GO jargon, this corresponds to **GO:0000003**	"reproduction".  Is it the fastest evolving catgeory or do you find even faster GO catgeories?
+
+
+>Q3.2: Visualize as a scatter plot in dN/dS on X versus autsomes for all G0 categories kept in Q3.1 
+
+>Q3.3: Count how many GO categories that have higher median dNdS on X compared to autosomes. Is this higher than expected by chance ? 
+
+If genes in a GO catgeory are evolving at the same rate "overall", we expect -- by a symmetry argument -- that about 1/2 of the X subgroup is faster in Mouse ...so use a binomial distribution for modelling as stochastic variable the number of GO that evolve faster on the X. 
+
+Calculate the probability of observing "just by chance" a pattern as extreme or more extreme than the one you can see on the plot. 
+
+
+
+# A few final remarks 
+It is completely OK to go the gentle path (option A). Option B is more *challenging* and requires quite a bit of extra coding 
+
+Wichever path you choose to go, you should take time to proofread your report and make both R code and "human" text easy to read. 
+
+Consult the tips provided by the book in chapter 26, 27
+https://r4ds.had.co.nz/communicate-intro.html
+
+
+# Reproduce the work ... 
+A good tip ... to make sure people know which R environment you used to do your analaysis 
+
+```{r}
+sessionInfo()
+```
+
